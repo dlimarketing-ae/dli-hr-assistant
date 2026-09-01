@@ -139,6 +139,20 @@
         <div class="success-msg" id="branding-msg"></div>
       </div>
       <div class="card">
+        <h3 style="margin-top:0;">Contact HR Details</h3>
+        <p class="hint">Shown to employees when they use the "Contact HR" option in the chat bot.</p>
+        <div class="row">
+          <div class="field"><label>HR Email</label><input type="email" id="setting-hr-email" placeholder="hr@dli.com" /></div>
+          <div class="field"><label>HR Phone (optional)</label><input type="tel" id="setting-hr-phone" placeholder="+971 4 000 0000" /></div>
+        </div>
+        <button class="btn" id="save-contact-btn">Save Contact Details</button>
+        <div class="success-msg" id="contact-msg"></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;">Admin Access</h3>
+        <p class="hint">This dashboard has no visible link from the employee chat bot. Share this page's URL directly with HR staff who need admin access.</p>
+      </div>
+      <div class="card">
         <h3 style="margin-top:0;">Change Admin Password</h3>
         <div class="row">
           <div class="field"><label>Current Password</label><input type="password" id="cur-pass" /></div>
@@ -270,6 +284,8 @@ async function loadBranding() {
   document.title = b.appName + ' — Admin';
   document.getElementById('setting-appname').value = b.appName;
   document.getElementById('setting-company').value = b.companyName;
+  document.getElementById('setting-hr-email').value = b.hrContactEmail || '';
+  document.getElementById('setting-hr-phone').value = b.hrContactPhone || '';
   renderIconPicker(b.appIcon);
 }
 function renderIconPicker(selected) {
@@ -301,6 +317,19 @@ document.getElementById('save-branding-btn').onclick = async () => {
     setTimeout(() => document.getElementById('branding-msg').textContent = '', 2000);
   } catch (e) {
     document.getElementById('branding-msg').textContent = e.message;
+  }
+};
+
+document.getElementById('save-contact-btn').onclick = async () => {
+  const hrContactEmail = document.getElementById('setting-hr-email').value.trim();
+  const hrContactPhone = document.getElementById('setting-hr-phone').value.trim();
+  const msg = document.getElementById('contact-msg');
+  try {
+    await api('/api/admin/branding', { method: 'POST', body: JSON.stringify({ hrContactEmail, hrContactPhone }) });
+    msg.textContent = 'Saved!';
+    setTimeout(() => (msg.textContent = ''), 2000);
+  } catch (e) {
+    msg.textContent = e.message;
   }
 };
 
