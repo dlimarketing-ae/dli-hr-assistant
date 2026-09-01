@@ -16,4 +16,4 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "dli-hr-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "301ca8c9-26bf-40e0-888a-2f31ceb2d903"
