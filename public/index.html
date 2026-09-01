@@ -6,6 +6,18 @@
 <title>DLI HR Assistant</title>
 <link rel="icon" id="favicon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏢</text></svg>" />
 <link rel="stylesheet" href="/style.css" />
+<script>
+  // Applied before paint to avoid a flash of the wrong theme. Defaults to
+  // dark; falls back gracefully if localStorage is unavailable.
+  (function () {
+    try {
+      var saved = localStorage.getItem('dli-theme');
+      document.documentElement.setAttribute('data-theme', saved === 'light' ? 'light' : 'dark');
+    } catch (e) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+</script>
 </head>
 <body>
   <div class="topbar">
@@ -15,6 +27,7 @@
       <div class="subtitle">Leave application &amp; employee self-service</div>
     </div>
     <div class="spacer"></div>
+    <button class="theme-toggle" id="theme-toggle" type="button" title="Toggle light / dark mode" aria-label="Toggle light / dark mode">🌙</button>
     <a class="link-btn" href="/admin.html">Admin Dashboard</a>
   </div>
 
@@ -29,6 +42,18 @@
   </div>
 
 <script>
+// ---------- theme toggle ----------
+const themeToggleBtn = document.getElementById('theme-toggle');
+function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'; }
+function updateThemeToggleIcon() { themeToggleBtn.textContent = currentTheme() === 'dark' ? '🌙' : '☀️'; }
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem('dli-theme', theme); } catch (e) {}
+  updateThemeToggleIcon();
+}
+themeToggleBtn.onclick = () => setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+updateThemeToggleIcon();
+
 const chatWindow = document.getElementById('chat-window');
 const chatInput = document.getElementById('chat-input');
 const chatSend = document.getElementById('chat-send');
