@@ -20,40 +20,176 @@
 </script>
 </head>
 <body>
-  <div class="topbar">
-    <span class="icon" id="app-icon">🏢</span>
-    <div>
-      <div class="title" id="app-title">DLI HR Assistant</div>
-      <div class="subtitle">Leave application &amp; employee self-service</div>
+
+  <!-- ===================== Landing (pre-chat hero) ===================== -->
+  <div class="landing-shell" id="landing-view">
+    <div class="top-controls">
+      <button class="sound-toggle" id="sound-toggle" type="button" title="Toggle message sounds" aria-label="Toggle message sounds">🔊</button>
+      <button class="theme-toggle" id="theme-toggle-landing" type="button" title="Toggle light / dark mode" aria-label="Toggle light / dark mode">🌙</button>
     </div>
-    <div class="spacer"></div>
-    <button class="theme-toggle" id="theme-toggle" type="button" title="Toggle light / dark mode" aria-label="Toggle light / dark mode">🌙</button>
-    <a class="link-btn" href="/admin.html">Admin Dashboard</a>
+    <div class="landing-inner">
+      <div class="landing-orb" id="landing-orb">🏢</div>
+      <h1 class="landing-greeting" id="landing-greeting">Good morning</h1>
+      <p class="landing-sub" id="landing-sub">I'm your HR assistant. Enter your Employee ID or work email to get started.</p>
+      <div class="landing-input-row">
+        <input id="landing-input" type="text" placeholder="Employee ID or work email…" autocomplete="off" />
+        <button class="btn" id="landing-go">Continue</button>
+      </div>
+      <div class="landing-cards" id="landing-cards">
+        <div class="landing-card" data-action="apply">
+          <span class="lc-icon">📝</span>
+          <div class="lc-title">Apply for Leave</div>
+          <div class="lc-sub">Request annual, sick, casual, or unpaid leave</div>
+        </div>
+        <div class="landing-card" data-action="balance">
+          <span class="lc-icon">📊</span>
+          <div class="lc-title">Check Leave Balance</div>
+          <div class="lc-sub">See your remaining days by type</div>
+        </div>
+        <div class="landing-card" data-action="history">
+          <span class="lc-icon">📋</span>
+          <div class="lc-title">My Leave History</div>
+          <div class="lc-sub">Review past and pending requests</div>
+        </div>
+        <div class="landing-card" data-action="contact">
+          <span class="lc-icon">💬</span>
+          <div class="lc-title">Contact HR</div>
+          <div class="lc-sub">Reach the HR team directly</div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="chat-shell">
-    <div class="chat-window" id="chat-window"></div>
-    <div class="chat-input-bar">
-      <div class="chat-input-inner">
-        <input id="chat-input" type="text" placeholder="Type here…" autocomplete="off" />
-        <button class="btn" id="chat-send">Send</button>
+  <!-- ===================== Chat ===================== -->
+  <div id="chat-view" style="display:none;">
+    <div class="topbar">
+      <span class="icon" id="app-icon">🏢</span>
+      <div>
+        <div class="title" id="app-title">DLI HR Assistant</div>
+        <div class="subtitle">Leave application &amp; employee self-service</div>
+      </div>
+      <div class="spacer"></div>
+      <button class="sound-toggle" id="sound-toggle-chat" type="button" title="Toggle message sounds" aria-label="Toggle message sounds">🔊</button>
+      <button class="theme-toggle" id="theme-toggle" type="button" title="Toggle light / dark mode" aria-label="Toggle light / dark mode">🌙</button>
+    </div>
+
+    <div class="chat-shell">
+      <div class="chat-window" id="chat-window"></div>
+      <div class="chat-input-bar">
+        <div class="chat-input-inner">
+          <input id="chat-input" type="text" placeholder="Type here…" autocomplete="off" />
+          <button class="btn" id="chat-send">Send</button>
+        </div>
       </div>
     </div>
   </div>
 
 <script>
-// ---------- theme toggle ----------
-const themeToggleBtn = document.getElementById('theme-toggle');
+// ---------- theme toggle (synced across landing + chat views) ----------
+const themeToggleBtns = [document.getElementById('theme-toggle-landing'), document.getElementById('theme-toggle')].filter(Boolean);
 function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'; }
-function updateThemeToggleIcon() { themeToggleBtn.textContent = currentTheme() === 'dark' ? '🌙' : '☀️'; }
+function updateThemeToggleIcons() {
+  const icon = currentTheme() === 'dark' ? '🌙' : '☀️';
+  themeToggleBtns.forEach((b) => (b.textContent = icon));
+}
 function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   try { localStorage.setItem('dli-theme', theme); } catch (e) {}
-  updateThemeToggleIcon();
+  updateThemeToggleIcons();
 }
-themeToggleBtn.onclick = () => setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
-updateThemeToggleIcon();
+themeToggleBtns.forEach((b) => (b.onclick = () => setTheme(currentTheme() === 'dark' ? 'light' : 'dark')));
+updateThemeToggleIcons();
 
+// ---------- sound toggle + synthesized message sounds ----------
+const soundToggleBtns = [document.getElementById('sound-toggle'), document.getElementById('sound-toggle-chat')].filter(Boolean);
+let soundOn = true;
+try { soundOn = localStorage.getItem('dli-sound') !== 'off'; } catch (e) {}
+function updateSoundToggleIcons() {
+  soundToggleBtns.forEach((b) => {
+    b.textContent = soundOn ? '🔊' : '🔇';
+    b.classList.toggle('muted', !soundOn);
+  });
+}
+soundToggleBtns.forEach((b) => (b.onclick = () => {
+  soundOn = !soundOn;
+  try { localStorage.setItem('dli-sound', soundOn ? 'on' : 'off'); } catch (e) {}
+  updateSoundToggleIcons();
+}));
+updateSoundToggleIcons();
+
+let audioCtx = null;
+function playTone(freq, duration, delay = 0) {
+  if (!soundOn) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = audioCtx.currentTime + delay;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(0.07, t0 + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.02);
+  } catch (e) {}
+}
+function playSendSound() { playTone(720, 0.09); }
+function playReceiveSound() { playTone(520, 0.11); }
+
+// ---------- landing page ----------
+const landingView = document.getElementById('landing-view');
+const chatView = document.getElementById('chat-view');
+const landingGreeting = document.getElementById('landing-greeting');
+const landingSub = document.getElementById('landing-sub');
+const landingInput = document.getElementById('landing-input');
+const landingGo = document.getElementById('landing-go');
+
+function timeOfDayGreeting() {
+  const h = new Date().getHours();
+  if (h < 5) return 'Good night';
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  if (h < 21) return 'Good evening';
+  return 'Good night';
+}
+
+let pendingLandingAction = null;
+
+function goToChat() {
+  landingView.style.display = 'none';
+  chatView.style.display = 'block';
+}
+
+document.querySelectorAll('.landing-card').forEach((card) => {
+  card.addEventListener('click', async () => {
+    pendingLandingAction = card.dataset.action;
+    if (pendingLandingAction === 'contact') {
+      // Contact HR doesn't require identification. Make sure branding
+      // (which carries the HR contact details) has finished loading first.
+      await brandingLoaded;
+      goToChat();
+      greet({ skipIdentifyPrompt: true });
+      showContactHr();
+      return;
+    }
+    landingInput.focus();
+    landingSub.textContent = 'First, enter your Employee ID or work email to continue.';
+  });
+});
+
+landingGo.onclick = () => {
+  const v = landingInput.value.trim();
+  if (!v) { landingInput.focus(); return; }
+  goToChat();
+  greet({ skipIdentifyPrompt: true });
+  addMsg('user', escapeHtml(v));
+  identify(v);
+};
+landingInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') landingGo.click(); });
+
+// ---------- chat ----------
 const chatWindow = document.getElementById('chat-window');
 const chatInput = document.getElementById('chat-input');
 const chatSend = document.getElementById('chat-send');
@@ -62,6 +198,7 @@ let state = {
   stage: 'identify', // identify -> menu -> apply_type -> apply_start -> apply_end -> apply_reason -> confirm
   employee: null,
   draft: {},
+  hrContact: null,
 };
 
 function addMsg(who, html, opts = {}) {
@@ -77,6 +214,7 @@ function addMsg(who, html, opts = {}) {
   wrap.appendChild(bubble);
   chatWindow.appendChild(wrap);
   chatWindow.scrollTop = chatWindow.scrollHeight;
+  if (who === 'bot') playReceiveSound(); else playSendSound();
   return bubble;
 }
 
@@ -110,13 +248,21 @@ async function loadBranding() {
     const b = await r.json();
     document.getElementById('app-title').textContent = b.appName;
     document.getElementById('app-icon').textContent = b.appIcon;
+    document.getElementById('landing-orb').textContent = b.appIcon;
     document.title = b.appName;
-    document.querySelector('.subtitle').textContent = `Leave application & employee self-service — ${b.companyName}`;
+    document.querySelector('#chat-view .subtitle').textContent = `Leave application & employee self-service — ${b.companyName}`;
+    state.hrContact = { email: b.hrContactEmail || '', phone: b.hrContactPhone || '' };
   } catch (e) {}
 }
 
-function greet() {
-  addMsg('bot', `Hi! I'm the ${document.getElementById('app-title').textContent}. I can help you check your leave balance, apply for leave, or view your request history.<br><br>To get started, please enter your <b>Employee ID</b> or work <b>email</b>.`);
+function setupLandingGreeting() {
+  landingGreeting.textContent = timeOfDayGreeting() + '.';
+}
+
+function greet(opts = {}) {
+  chatWindow.innerHTML = '';
+  const name = document.getElementById('app-title').textContent;
+  addMsg('bot', `Hi! I'm the ${name}. I can help you check your leave balance, apply for leave, or view your request history.${opts.skipIdentifyPrompt ? '' : '<br><br>To get started, please enter your <b>Employee ID</b> or work <b>email</b>.'}`);
 }
 
 function showMainMenu() {
@@ -126,8 +272,21 @@ function showMainMenu() {
     { label: '📝 Apply for Leave', value: 'apply' },
     { label: '📊 Check Leave Balance', value: 'balance' },
     { label: '📋 My Leave History', value: 'history' },
+    { label: '💬 Contact HR', value: 'contact' },
     { label: '🔄 Switch Employee', value: 'switch' },
   ]);
+
+  // If the visitor arrived via a landing-page quick-action card, jump
+  // straight into that flow once we know who they are.
+  if (pendingLandingAction && pendingLandingAction !== 'contact') {
+    const action = pendingLandingAction;
+    pendingLandingAction = null;
+    setTimeout(() => {
+      if (action === 'apply') startApply();
+      else if (action === 'balance') showBalance();
+      else if (action === 'history') showHistory();
+    }, 250);
+  }
 }
 
 function showBalance() {
@@ -158,6 +317,24 @@ async function showHistory() {
     addMsg('bot', 'Sorry, I could not load your leave history right now.');
   }
   setTimeout(showMainMenu, 300);
+}
+
+function showContactHr() {
+  const c = state.hrContact || {};
+  const email = c.email || 'hr@dli.com';
+  const phone = c.phone || '';
+  addMsg('bot', `You can reach the HR team directly:
+    <div class="contact-hr-card">
+      <div class="contact-hr-row"><span class="chr-icon">✉️</span> <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></div>
+      ${phone ? `<div class="contact-hr-row"><span class="chr-icon">📞</span> <a href="tel:${escapeHtml(phone)}">${escapeHtml(phone)}</a></div>` : ''}
+    </div>`);
+  if (state.employee) {
+    setTimeout(showMainMenu, 300);
+  } else {
+    setTimeout(() => {
+      addMsg('bot', 'Is there anything else I can help with? Enter your Employee ID or work email to get started with leave requests.');
+    }, 300);
+  }
 }
 
 function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -199,6 +376,7 @@ function showDateForm(which) {
   wrap.appendChild(bubble);
   chatWindow.appendChild(wrap);
   chatWindow.scrollTop = chatWindow.scrollHeight;
+  playReceiveSound();
   document.getElementById('date-submit').onclick = () => {
     const val = document.getElementById('date-input').value;
     if (!val) return;
@@ -301,6 +479,7 @@ function handleInput(value, displayLabel) {
     if (value === 'apply') return startApply();
     if (value === 'balance') return showBalance();
     if (value === 'history') return showHistory();
+    if (value === 'contact') return showContactHr();
     if (value === 'switch') {
       state.employee = null;
       state.stage = 'identify';
@@ -312,6 +491,7 @@ function handleInput(value, displayLabel) {
       { label: '📝 Apply for Leave', value: 'apply' },
       { label: '📊 Check Leave Balance', value: 'balance' },
       { label: '📋 My Leave History', value: 'history' },
+      { label: '💬 Contact HR', value: 'contact' },
     ]);
     return;
   }
@@ -353,7 +533,8 @@ chatInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') chatSend.click();
 });
 
-loadBranding().then(greet);
+setupLandingGreeting();
+const brandingLoaded = loadBranding();
 </script>
 </body>
 </html>
