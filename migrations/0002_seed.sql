@@ -1,5 +1,5 @@
 -- Default settings. The admin password hash below decodes to "DLI@Admin123"
--- using PBKDF2-SHA256 (100,000 iterations) — see functions/api/_lib/auth.ts.
+-- using PBKDF2-SHA256 (100,000 iterations) — see src/lib/auth.ts.
 -- CHANGE THIS PASSWORD after your first login via the admin dashboard.
 INSERT INTO settings (key, value) VALUES
   ('admin_password_hash', '22a6545308f1b8232537f8abaf9f9e63:bfcc25bf62ae6cd40c1296d91cbbbe9309d5a3c0d0b6fefa37312bcd81c5964b'),
