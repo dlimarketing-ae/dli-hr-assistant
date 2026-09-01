@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DLI HR Assistant</title>
+<link rel="icon" id="favicon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏢</text></svg>" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <span class="icon" id="app-icon">🏢</span>
+    <div>
+      <div class="title" id="app-title">DLI HR Assistant</div>
+      <div class="subtitle">Leave application &amp; employee self-service</div>
+    </div>
+    <div class="spacer"></div>
+    <a class="link-btn" href="/admin.html">Admin Dashboard</a>
+  </div>
+
+  <div class="chat-shell">
+    <div class="chat-window" id="chat-window"></div>
+    <div class="chat-input-bar">
+      <div class="chat-input-inner">
+        <input id="chat-input" type="text" placeholder="Type here…" autocomplete="off" />
+        <button class="btn" id="chat-send">Send</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const chatWindow = document.getElementById('chat-window');
+const chatInput = document.getElementById('chat-input');
+const chatSend = document.getElementById('chat-send');
+
+let state = {
+  stage: 'identify', // identify -> menu -> apply_type -> apply_start -> apply_end -> apply_reason -> confirm
+  employee: null,
+  draft: {},
+};
+
+function addMsg(who, html, opts = {}) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + who;
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  avatar.textContent = who === 'bot' ? '🤖' : '🙂';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = html;
+  wrap.appendChild(avatar);
+  wrap.appendChild(bubble);
+  chatWindow.appendChild(wrap);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+  return bubble;
+}
+
+function addQuickReplies(options) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg bot';
+  const spacer = document.createElement('div');
+  spacer.className = 'avatar';
+  spacer.style.visibility = 'hidden';
+  const qr = document.createElement('div');
+  qr.className = 'quick-replies';
+  options.forEach(opt => {
+    const b = document.createElement('button');
+    b.textContent = opt.label;
+    b.onclick = () => { qr.querySelectorAll('button').forEach(x => x.disabled = true); handleInput(opt.value, opt.label); };
+    qr.appendChild(b);
+  });
+  wrap.appendChild(spacer);
+  wrap.appendChild(qr);
+  chatWindow.appendChild(wrap);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadBranding() {
+  try {
+    const r = await fetch('/api/branding');
+    const b = await r.json();
+    document.getElementById('app-title').textContent = b.appName;
+    document.getElementById('app-icon').textContent = b.appIcon;
+    document.title = b.appName;
+    document.querySelector('.subtitle').textContent = `Leave application & employee self-service — ${b.companyName}`;
+  } catch (e) {}
+}
+
+function greet() {
+  addMsg('bot', `Hi! I'm the ${document.getElementById('app-title').textContent}. I can help you check your leave balance, apply for leave, or view your request history.<br><br>To get started, please enter your <b>Employee ID</b> or work <b>email</b>.`);
+}
+
+function showMainMenu() {
+  state.stage = 'menu';
+  addMsg('bot', `What would you like to do, ${escapeHtml(state.employee.name.split(' ')[0])}?`);
+  addQuickReplies([
+    { label: '📝 Apply for Leave', value: 'apply' },
+    { label: '📊 Check Leave Balance', value: 'balance' },
+    { label: '📋 My Leave History', value: 'history' },
+    { label: '🔄 Switch Employee', value: 'switch' },
+  ]);
+}
+
+function showBalance() {
+  const b = state.employee.balances;
+  addMsg('bot', `Here's your current leave balance:<div class="leave-balance-grid">
+    <div class="lb"><div class="n">${b.annual}</div><div class="t">Annual</div></div>
+    <div class="lb"><div class="n">${b.sick}</div><div class="t">Sick</div></div>
+    <div class="lb"><div class="n">${b.casual}</div><div class="t">Casual</div></div>
+    <div class="lb"><div class="n">${b.unpaid}</div><div class="t">Unpaid taken</div></div>
+  </div>`);
+  setTimeout(showMainMenu, 300);
+}
+
+async function showHistory() {
+  addMsg('bot', 'One moment — fetching your leave history…');
+  try {
+    const r = await fetch('/api/employee/leaves?identifier=' + encodeURIComponent(state.employee.employeeId));
+    const data = await r.json();
+    if (!data.leaves || !data.leaves.length) {
+      addMsg('bot', "You haven't submitted any leave requests yet.");
+    } else {
+      const rows = data.leaves.slice(0, 8).map(l =>
+        `<li><b>${capitalize(l.leaveType)}</b> · ${l.startDate} → ${l.endDate} (${l.days}d) — <span class="badge ${l.status}">${l.status}</span></li>`
+      ).join('');
+      addMsg('bot', `Here are your recent requests:<ul>${rows}</ul>`);
+    }
+  } catch (e) {
+    addMsg('bot', 'Sorry, I could not load your leave history right now.');
+  }
+  setTimeout(showMainMenu, 300);
+}
+
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function startApply() {
+  state.stage = 'apply_type';
+  state.draft = {};
+  addMsg('bot', 'Sure! What type of leave would you like to apply for?');
+  addQuickReplies([
+    { label: 'Annual', value: 'annual' },
+    { label: 'Sick', value: 'sick' },
+    { label: 'Casual', value: 'casual' },
+    { label: 'Unpaid', value: 'unpaid' },
+  ]);
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function showDateForm(which) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg bot';
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  avatar.textContent = '🤖';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.style.width = '260px';
+  const label = which === 'start' ? 'Start date' : 'End date';
+  bubble.innerHTML = `${label} for your ${state.draft.leaveType} leave:
+    <div class="form-in-chat">
+      <input type="date" id="date-input" value="${todayStr()}" />
+      <div style="margin-top:10px; text-align:right;">
+        <button class="btn small" id="date-submit">Continue</button>
+      </div>
+    </div>`;
+  wrap.appendChild(avatar);
+  wrap.appendChild(bubble);
+  chatWindow.appendChild(wrap);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+  document.getElementById('date-submit').onclick = () => {
+    const val = document.getElementById('date-input').value;
+    if (!val) return;
+    bubble.querySelector('.form-in-chat').innerHTML = `<span class="muted">Selected: ${val}</span>`;
+    if (which === 'start') {
+      state.draft.startDate = val;
+      addMsg('user', val);
+      state.stage = 'apply_end';
+      showDateForm('end');
+    } else {
+      state.draft.endDate = val;
+      addMsg('user', val);
+      state.stage = 'apply_reason';
+      addMsg('bot', 'Got it. Would you like to add a reason/note for this request? (optional — you can type "skip")');
+    }
+  };
+}
+
+function showConfirm() {
+  state.stage = 'confirm';
+  const d = state.draft;
+  addMsg('bot', `Please confirm your leave request:<br><br>
+    <b>Type:</b> ${capitalize(d.leaveType)}<br>
+    <b>From:</b> ${d.startDate} &nbsp; <b>To:</b> ${d.endDate}<br>
+    <b>Reason:</b> ${escapeHtml(d.reason || '—')}<br><br>
+    Shall I submit this to HR?`);
+  addQuickReplies([
+    { label: '✅ Submit', value: 'submit' },
+    { label: '❌ Cancel', value: 'cancel' },
+  ]);
+}
+
+async function submitLeave() {
+  addMsg('bot', 'Submitting your request…');
+  try {
+    const r = await fetch('/api/employee/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: state.employee.employeeId,
+        leaveType: state.draft.leaveType,
+        startDate: state.draft.startDate,
+        endDate: state.draft.endDate,
+        reason: state.draft.reason || '',
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      addMsg('bot', `⚠️ ${escapeHtml(data.error)}`);
+    } else {
+      addMsg('bot', `✅ ${escapeHtml(data.message)}`);
+      // refresh employee balances
+      const lookup = await fetch('/api/employee/lookup', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ identifier: state.employee.employeeId })
+      });
+      const ld = await lookup.json();
+      if (ld.employee) state.employee = ld.employee;
+    }
+  } catch (e) {
+    addMsg('bot', 'Something went wrong submitting your request. Please try again.');
+  }
+  setTimeout(showMainMenu, 400);
+}
+
+async function identify(text) {
+  addMsg('bot', 'Looking you up…');
+  try {
+    const r = await fetch('/api/employee/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: text }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      addMsg('bot', `❌ ${escapeHtml(data.error)} Please try again with your Employee ID (e.g. DLI001) or work email.`);
+      return;
+    }
+    state.employee = data.employee;
+    addMsg('bot', `Welcome, <b>${escapeHtml(data.employee.name)}</b> 👋 (${escapeHtml(data.employee.department)})`);
+    setTimeout(showMainMenu, 300);
+  } catch (e) {
+    addMsg('bot', 'Sorry, something went wrong. Please try again.');
+  }
+}
+
+function handleInput(value, displayLabel) {
+  const shown = displayLabel !== undefined ? displayLabel : value;
+  if (state.stage !== 'apply_reason' || displayLabel !== undefined) {
+    if (state.stage !== 'identify') addMsg('user', escapeHtml(shown));
+  }
+
+  if (state.stage === 'identify') {
+    addMsg('user', escapeHtml(value));
+    identify(value);
+    return;
+  }
+
+  if (state.stage === 'menu') {
+    if (value === 'apply') return startApply();
+    if (value === 'balance') return showBalance();
+    if (value === 'history') return showHistory();
+    if (value === 'switch') {
+      state.employee = null;
+      state.stage = 'identify';
+      addMsg('bot', 'No problem — please enter the Employee ID or email you want to switch to.');
+      return;
+    }
+    addMsg('bot', "I didn't catch that — please choose one of the options above.");
+    addQuickReplies([
+      { label: '📝 Apply for Leave', value: 'apply' },
+      { label: '📊 Check Leave Balance', value: 'balance' },
+      { label: '📋 My Leave History', value: 'history' },
+    ]);
+    return;
+  }
+
+  if (state.stage === 'apply_type') {
+    if (!['annual','sick','casual','unpaid'].includes(value)) {
+      addMsg('bot', 'Please pick one of the leave types above.');
+      return;
+    }
+    state.draft.leaveType = value;
+    state.stage = 'apply_start';
+    showDateForm('start');
+    return;
+  }
+
+  if (state.stage === 'apply_reason') {
+    state.draft.reason = value.toLowerCase() === 'skip' ? '' : value;
+    showConfirm();
+    return;
+  }
+
+  if (state.stage === 'confirm') {
+    if (value === 'submit') return submitLeave();
+    if (value === 'cancel') {
+      addMsg('bot', 'No problem, cancelled that request.');
+      setTimeout(showMainMenu, 300);
+      return;
+    }
+  }
+}
+
+chatSend.onclick = () => {
+  const v = chatInput.value.trim();
+  if (!v) return;
+  chatInput.value = '';
+  handleInput(v);
+};
+chatInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') chatSend.click();
+});
+
+loadBranding().then(greet);
+</script>
+</body>
+</html>

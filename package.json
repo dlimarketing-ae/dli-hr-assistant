@@ -1,0 +1,21 @@
+{
+  "name": "dli-hr-assistant-cf",
+  "version": "1.0.0",
+  "description": "DLI HR Leave Management Chat Bot + Admin Dashboard (Cloudflare Worker + D1 edition)",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "db:migrate:local": "wrangler d1 migrations apply dli-hr-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply dli-hr-db --remote",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0",
+    "@cloudflare/workers-types": "^4.20240925.0",
+    "typescript": "^5.6.2"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
+}

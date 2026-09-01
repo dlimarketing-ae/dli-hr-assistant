@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DLI HR Admin Dashboard</title>
+<link rel="icon" id="favicon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏢</text></svg>" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<div id="login-view" class="login-shell" style="display:none;">
+  <div class="card login-card">
+    <div class="icon" id="login-icon">🏢</div>
+    <h2 id="login-title" style="margin:8px 0 2px;">Admin Login</h2>
+    <p class="hint" style="margin-bottom:18px;">Enter the admin password to manage employees and leave requests.</p>
+    <div class="field text-left">
+      <input type="password" id="login-password" placeholder="Admin password" autocomplete="current-password" />
+    </div>
+    <button class="btn" id="login-btn" style="width:100%;">Log In</button>
+    <div class="error-msg" id="login-error"></div>
+    <p class="hint" style="margin-top:16px;">Default password: <code>DLI@Admin123</code> — change it after logging in.</p>
+  </div>
+</div>
+
+<div id="dashboard-view" style="display:none;">
+  <div class="topbar">
+    <span class="icon" id="app-icon">🏢</span>
+    <div>
+      <div class="title" id="app-title">DLI HR Assistant</div>
+      <div class="subtitle">Admin Dashboard</div>
+    </div>
+    <div class="spacer"></div>
+    <a class="link-btn" href="/index.html">Employee Chat Bot</a>
+    <button class="link-btn" id="logout-btn">Log Out</button>
+  </div>
+
+  <div class="container">
+
+    <div class="stat-grid" id="stats-grid"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="employees">Employees</button>
+      <button class="tab-btn" data-tab="leaves">Leave Requests</button>
+      <button class="tab-btn" data-tab="data">Import / Export</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
+    </div>
+
+    <!-- EMPLOYEES TAB -->
+    <div class="tab-panel active" id="tab-employees">
+      <div class="card">
+        <div class="flex-between" style="margin-bottom:14px;">
+          <input type="text" id="emp-search" placeholder="Search by name, ID, email or department…" style="max-width:340px;" />
+          <button class="btn" id="add-emp-btn">+ Add Employee</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr>
+              <th>Employee ID</th><th>Name</th><th>Department</th><th>Designation</th>
+              <th>Annual</th><th>Sick</th><th>Casual</th><th>Unpaid</th><th></th>
+            </tr></thead>
+            <tbody id="emp-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEAVES TAB -->
+    <div class="tab-panel" id="tab-leaves">
+      <div class="card">
+        <div class="flex-between" style="margin-bottom:14px;">
+          <div class="tabs" style="border:none; margin:0;">
+            <button class="tab-btn active" data-status="">All</button>
+            <button class="tab-btn" data-status="Pending">Pending</button>
+            <button class="tab-btn" data-status="Approved">Approved</button>
+            <button class="tab-btn" data-status="Rejected">Rejected</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr>
+              <th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Reason</th><th>Status</th><th>Applied</th><th></th>
+            </tr></thead>
+            <tbody id="leave-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATA TAB -->
+    <div class="tab-panel" id="tab-data">
+      <div class="card">
+        <h3 style="margin-top:0;">Download Employee Data</h3>
+        <p class="hint">Export all employees and their leave balances as an Excel (.xlsx) file.</p>
+        <button class="btn success" id="export-btn">⬇️ Download as Excel</button>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;">Upload Employee Data</h3>
+        <p class="hint">Upload an .xlsx file with columns: Employee ID, Name, Email, Department, Designation, Join Date, Annual/Sick/Casual Leave Balance, Unpaid Leave Taken. Existing Employee IDs will be updated; new ones will be added.</p>
+        <div class="upload-drop" id="upload-drop">
+          <input type="file" id="upload-input" accept=".xlsx" style="display:none;" />
+          <div>📤 Click to choose an .xlsx file, or drag one here</div>
+        </div>
+        <div id="upload-result" style="margin-top:12px;"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div class="tab-panel" id="tab-settings">
+      <div class="card">
+        <h3 style="margin-top:0;">App Branding</h3>
+        <p class="hint">Customize the name and icon shown to employees in the chat bot and here in the dashboard.</p>
+        <div class="field">
+          <label>App Name</label>
+          <input type="text" id="setting-appname" />
+        </div>
+        <div class="field">
+          <label>Company Name</label>
+          <input type="text" id="setting-company" />
+        </div>
+        <div class="field">
+          <label>App Icon</label>
+          <div class="icon-picker" id="icon-picker"></div>
+          <input type="text" id="setting-icon-custom" placeholder="Or type any emoji…" style="margin-top:8px; max-width:120px;" />
+        </div>
+        <button class="btn" id="save-branding-btn">Save Branding</button>
+        <div class="success-msg" id="branding-msg"></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;">Change Admin Password</h3>
+        <div class="row">
+          <div class="field"><label>Current Password</label><input type="password" id="cur-pass" /></div>
+          <div class="field"><label>New Password</label><input type="password" id="new-pass" /></div>
+        </div>
+        <button class="btn" id="change-pass-btn">Update Password</button>
+        <div id="pass-msg"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Add/Edit Employee Modal -->
+<div class="modal-overlay" id="emp-modal" style="display:none;">
+  <div class="modal-box">
+    <h3 id="emp-modal-title">Add Employee</h3>
+    <input type="hidden" id="emp-orig-id" />
+    <div class="row">
+      <div class="field"><label>Employee ID</label><input type="text" id="f-employee-id" placeholder="DLI006" /></div>
+      <div class="field"><label>Name</label><input type="text" id="f-name" /></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Email</label><input type="email" id="f-email" /></div>
+      <div class="field"><label>Join Date</label><input type="date" id="f-joindate" /></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Department</label><input type="text" id="f-department" /></div>
+      <div class="field"><label>Designation</label><input type="text" id="f-designation" /></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Annual Balance</label><input type="number" id="f-annual" value="21" /></div>
+      <div class="field"><label>Sick Balance</label><input type="number" id="f-sick" value="10" /></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Casual Balance</label><input type="number" id="f-casual" value="7" /></div>
+      <div class="field"><label>Unpaid Taken</label><input type="number" id="f-unpaid" value="0" /></div>
+    </div>
+    <div class="error-msg" id="emp-modal-error"></div>
+    <div class="flex-between" style="margin-top:14px;">
+      <button class="btn secondary" id="emp-modal-cancel">Cancel</button>
+      <button class="btn" id="emp-modal-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Employee Detail Modal -->
+<div class="modal-overlay" id="detail-modal" style="display:none;">
+  <div class="modal-box" style="max-width:600px;">
+    <div class="flex-between">
+      <h3 id="detail-title" style="margin:0;">Employee</h3>
+      <button class="btn secondary small" id="detail-close">Close</button>
+    </div>
+    <div id="detail-body"></div>
+  </div>
+</div>
+
+<script>
+const ICONS = ['🏢','🧑‍💼','📋','🗂️','🏛️','🌟','🔷','🧭','📌','🏆','🌿','🚀'];
+let currentEmployees = [];
+let editingEmployeeId = null;
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  let data = {};
+  try { data = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+// ---------- auth ----------
+async function checkSession() {
+  const data = await api('/api/admin/session');
+  if (data.loggedIn) {
+    document.getElementById('login-view').style.display = 'none';
+    document.getElementById('dashboard-view').style.display = 'block';
+    initDashboard();
+  } else {
+    document.getElementById('login-view').style.display = 'flex';
+    document.getElementById('dashboard-view').style.display = 'none';
+  }
+}
+
+document.getElementById('login-btn').onclick = async () => {
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  try {
+    await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ password }) });
+    checkSession();
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+};
+document.getElementById('login-password').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('login-btn').click();
+});
+document.getElementById('logout-btn').onclick = async () => {
+  await api('/api/admin/logout', { method: 'POST' });
+  checkSession();
+};
+
+// ---------- branding ----------
+async function loadBranding() {
+  const b = await api('/api/branding');
+  document.getElementById('app-title').textContent = b.appName;
+  document.getElementById('app-icon').textContent = b.appIcon;
+  document.getElementById('login-icon').textContent = b.appIcon;
+  document.getElementById('login-title').textContent = b.appName + ' — Admin';
+  document.title = b.appName + ' — Admin';
+  document.getElementById('setting-appname').value = b.appName;
+  document.getElementById('setting-company').value = b.companyName;
+  renderIconPicker(b.appIcon);
+}
+function renderIconPicker(selected) {
+  const wrap = document.getElementById('icon-picker');
+  wrap.innerHTML = '';
+  ICONS.forEach(icon => {
+    const b = document.createElement('button');
+    b.textContent = icon;
+    if (icon === selected) b.classList.add('sel');
+    b.onclick = () => {
+      wrap.querySelectorAll('button').forEach(x => x.classList.remove('sel'));
+      b.classList.add('sel');
+      document.getElementById('setting-icon-custom').value = '';
+      wrap.dataset.selected = icon;
+    };
+    wrap.appendChild(b);
+  });
+  wrap.dataset.selected = selected;
+}
+document.getElementById('save-branding-btn').onclick = async () => {
+  const custom = document.getElementById('setting-icon-custom').value.trim();
+  const icon = custom || document.getElementById('icon-picker').dataset.selected || '🏢';
+  const appName = document.getElementById('setting-appname').value.trim() || 'DLI HR Assistant';
+  const companyName = document.getElementById('setting-company').value.trim() || 'DLI';
+  try {
+    await api('/api/admin/branding', { method: 'POST', body: JSON.stringify({ appName, appIcon: icon, companyName }) });
+    document.getElementById('branding-msg').textContent = 'Saved!';
+    loadBranding();
+    setTimeout(() => document.getElementById('branding-msg').textContent = '', 2000);
+  } catch (e) {
+    document.getElementById('branding-msg').textContent = e.message;
+  }
+};
+
+document.getElementById('change-pass-btn').onclick = async () => {
+  const currentPassword = document.getElementById('cur-pass').value;
+  const newPassword = document.getElementById('new-pass').value;
+  const msg = document.getElementById('pass-msg');
+  msg.className = '';
+  try {
+    await api('/api/admin/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
+    msg.className = 'success-msg';
+    msg.textContent = 'Password updated.';
+    document.getElementById('cur-pass').value = '';
+    document.getElementById('new-pass').value = '';
+  } catch (e) {
+    msg.className = 'error-msg';
+    msg.textContent = e.message;
+  }
+};
+
+// ---------- tabs ----------
+document.querySelectorAll('.tabs > .tab-btn[data-tab]').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tabs > .tab-btn[data-tab]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  };
+});
+
+// ---------- stats ----------
+async function loadStats() {
+  const s = await api('/api/admin/stats');
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><div class="num">${s.totalEmployees}</div><div class="lbl">Total Employees</div></div>
+    <div class="stat-card"><div class="num">${s.pending}</div><div class="lbl">Pending Requests</div></div>
+    <div class="stat-card"><div class="num">${s.approved}</div><div class="lbl">Approved</div></div>
+    <div class="stat-card"><div class="num">${s.rejected}</div><div class="lbl">Rejected</div></div>
+  `;
+}
+
+// ---------- employees ----------
+async function loadEmployees(q) {
+  const url = '/api/admin/employees' + (q ? '?q=' + encodeURIComponent(q) : '');
+  const data = await api(url);
+  currentEmployees = data.employees;
+  renderEmployeeTable();
+}
+function renderEmployeeTable() {
+  const body = document.getElementById('emp-table-body');
+  if (!currentEmployees.length) {
+    body.innerHTML = `<tr><td colspan="9" class="muted">No employees found.</td></tr>`;
+    return;
+  }
+  body.innerHTML = currentEmployees.map(e => `
+    <tr>
+      <td><a href="#" onclick="openDetail('${e.employeeId}');return false;"><b>${escapeHtml(e.employeeId)}</b></a></td>
+      <td>${escapeHtml(e.name)}</td>
+      <td>${escapeHtml(e.department||'')}</td>
+      <td>${escapeHtml(e.designation||'')}</td>
+      <td>${e.balances.annual}</td>
+      <td>${e.balances.sick}</td>
+      <td>${e.balances.casual}</td>
+      <td>${e.balances.unpaid}</td>
+      <td>
+        <button class="btn secondary small" onclick="openEditEmployee('${e.employeeId}')">Edit</button>
+        <button class="btn danger small" onclick="deleteEmployee('${e.employeeId}')">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+let searchTimer;
+document.getElementById('emp-search').addEventListener('input', (e) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadEmployees(e.target.value.trim()), 250);
+});
+
+async function deleteEmployee(id) {
+  if (!confirm(`Delete employee ${id}? This also removes their leave history.`)) return;
+  await api('/api/admin/employees/' + encodeURIComponent(id), { method: 'DELETE' });
+  loadEmployees(document.getElementById('emp-search').value.trim());
+  loadStats();
+}
+
+function openAddEmployee() {
+  editingEmployeeId = null;
+  document.getElementById('emp-modal-title').textContent = 'Add Employee';
+  ['f-employee-id','f-name','f-email','f-joindate','f-department','f-designation'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-employee-id').disabled = false;
+  document.getElementById('f-annual').value = 21;
+  document.getElementById('f-sick').value = 10;
+  document.getElementById('f-casual').value = 7;
+  document.getElementById('f-unpaid').value = 0;
+  document.getElementById('emp-modal-error').textContent = '';
+  document.getElementById('emp-modal').style.display = 'flex';
+}
+async function openEditEmployee(id) {
+  const data = await api('/api/admin/employees/' + encodeURIComponent(id));
+  const e = data.employee;
+  editingEmployeeId = id;
+  document.getElementById('emp-modal-title').textContent = 'Edit Employee';
+  document.getElementById('f-employee-id').value = e.employeeId;
+  document.getElementById('f-employee-id').disabled = true;
+  document.getElementById('f-name').value = e.name || '';
+  document.getElementById('f-email').value = e.email || '';
+  document.getElementById('f-joindate').value = e.joinDate || '';
+  document.getElementById('f-department').value = e.department || '';
+  document.getElementById('f-designation').value = e.designation || '';
+  document.getElementById('f-annual').value = e.balances.annual;
+  document.getElementById('f-sick').value = e.balances.sick;
+  document.getElementById('f-casual').value = e.balances.casual;
+  document.getElementById('f-unpaid').value = e.balances.unpaid;
+  document.getElementById('emp-modal-error').textContent = '';
+  document.getElementById('emp-modal').style.display = 'flex';
+}
+document.getElementById('add-emp-btn').onclick = openAddEmployee;
+document.getElementById('emp-modal-cancel').onclick = () => document.getElementById('emp-modal').style.display = 'none';
+document.getElementById('emp-modal-save').onclick = async () => {
+  const payload = {
+    employeeId: document.getElementById('f-employee-id').value.trim(),
+    name: document.getElementById('f-name').value.trim(),
+    email: document.getElementById('f-email').value.trim(),
+    joinDate: document.getElementById('f-joindate').value,
+    department: document.getElementById('f-department').value.trim(),
+    designation: document.getElementById('f-designation').value.trim(),
+    annual: document.getElementById('f-annual').value,
+    sick: document.getElementById('f-sick').value,
+    casual: document.getElementById('f-casual').value,
+    unpaid: document.getElementById('f-unpaid').value,
+  };
+  const errEl = document.getElementById('emp-modal-error');
+  try {
+    if (editingEmployeeId) {
+      await api('/api/admin/employees/' + encodeURIComponent(editingEmployeeId), { method: 'PUT', body: JSON.stringify(payload) });
+    } else {
+      if (!payload.employeeId || !payload.name) throw new Error('Employee ID and Name are required');
+      await api('/api/admin/employees', { method: 'POST', body: JSON.stringify(payload) });
+    }
+    document.getElementById('emp-modal').style.display = 'none';
+    loadEmployees(document.getElementById('emp-search').value.trim());
+    loadStats();
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+};
+
+async function openDetail(id) {
+  const data = await api('/api/admin/employees/' + encodeURIComponent(id));
+  const e = data.employee;
+  document.getElementById('detail-title').textContent = `${e.name} (${e.employeeId})`;
+  const leaveRows = data.leaves.length ? data.leaves.map(l => `
+    <tr>
+      <td>${capitalize(l.leaveType)}</td>
+      <td>${l.startDate} → ${l.endDate}</td>
+      <td>${l.days}</td>
+      <td><span class="badge ${l.status}">${l.status}</span></td>
+    </tr>
+  `).join('') : `<tr><td colspan="4" class="muted">No leave requests yet.</td></tr>`;
+  document.getElementById('detail-body').innerHTML = `
+    <p class="muted">${escapeHtml(e.department||'—')} · ${escapeHtml(e.designation||'—')} · ${escapeHtml(e.email||'—')}</p>
+    <div class="leave-balance-grid">
+      <div class="lb"><div class="n">${e.balances.annual}</div><div class="t">Annual</div></div>
+      <div class="lb"><div class="n">${e.balances.sick}</div><div class="t">Sick</div></div>
+      <div class="lb"><div class="n">${e.balances.casual}</div><div class="t">Casual</div></div>
+      <div class="lb"><div class="n">${e.balances.unpaid}</div><div class="t">Unpaid taken</div></div>
+    </div>
+    <h4>Leave History</h4>
+    <table><thead><tr><th>Type</th><th>Dates</th><th>Days</th><th>Status</th></tr></thead>
+    <tbody>${leaveRows}</tbody></table>
+  `;
+  document.getElementById('detail-modal').style.display = 'flex';
+}
+document.getElementById('detail-close').onclick = () => document.getElementById('detail-modal').style.display = 'none';
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// ---------- leave requests ----------
+let currentLeaveStatus = '';
+document.querySelectorAll('#tab-leaves .tab-btn[data-status]').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('#tab-leaves .tab-btn[data-status]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentLeaveStatus = btn.dataset.status;
+    loadLeaves();
+  };
+});
+async function loadLeaves() {
+  const url = '/api/admin/leaves' + (currentLeaveStatus ? '?status=' + currentLeaveStatus : '');
+  const data = await api(url);
+  const body = document.getElementById('leave-table-body');
+  if (!data.leaves.length) {
+    body.innerHTML = `<tr><td colspan="8" class="muted">No leave requests found.</td></tr>`;
+    return;
+  }
+  body.innerHTML = data.leaves.map(l => `
+    <tr>
+      <td>${escapeHtml(l.employeeName)} <span class="muted">(${escapeHtml(l.employeeId)})</span></td>
+      <td>${capitalize(l.leaveType)}</td>
+      <td>${l.startDate} → ${l.endDate}</td>
+      <td>${l.days}</td>
+      <td>${escapeHtml(l.reason||'—')}</td>
+      <td><span class="badge ${l.status}">${l.status}</span></td>
+      <td>${l.appliedAt ? l.appliedAt.split(' ')[0] : ''}</td>
+      <td>
+        ${l.status === 'Pending' ? `
+          <button class="btn success small" onclick="decideLeave(${l.id}, 'Approved')">Approve</button>
+          <button class="btn danger small" onclick="decideLeave(${l.id}, 'Rejected')">Reject</button>
+        ` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+async function decideLeave(id, decision) {
+  try {
+    await api(`/api/admin/leaves/${id}/decide`, { method: 'POST', body: JSON.stringify({ decision }) });
+    loadLeaves();
+    loadEmployees(document.getElementById('emp-search').value.trim());
+    loadStats();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+// ---------- import/export ----------
+document.getElementById('export-btn').onclick = () => {
+  window.location.href = '/api/admin/employees/export/xlsx';
+};
+const uploadDrop = document.getElementById('upload-drop');
+const uploadInput = document.getElementById('upload-input');
+uploadDrop.onclick = () => uploadInput.click();
+uploadDrop.ondragover = (e) => { e.preventDefault(); uploadDrop.style.borderColor = '#2d5486'; };
+uploadDrop.ondragleave = () => { uploadDrop.style.borderColor = ''; };
+uploadDrop.ondrop = (e) => {
+  e.preventDefault();
+  uploadDrop.style.borderColor = '';
+  if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+};
+uploadInput.onchange = () => {
+  if (uploadInput.files.length) uploadFile(uploadInput.files[0]);
+};
+async function uploadFile(file) {
+  const resultEl = document.getElementById('upload-result');
+  resultEl.innerHTML = '<span class="muted">Uploading…</span>';
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const r = await fetch('/api/admin/employees/import/xlsx', { method: 'POST', body: formData });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Upload failed');
+    let html = `<div class="success-msg">✅ Imported/updated ${data.imported} employee(s).</div>`;
+    if (data.errors && data.errors.length) {
+      html += `<div class="error-msg">${data.errors.map(escapeHtml).join('<br>')}</div>`;
+    }
+    resultEl.innerHTML = html;
+    loadEmployees('');
+    loadStats();
+  } catch (e) {
+    resultEl.innerHTML = `<div class="error-msg">${escapeHtml(e.message)}</div>`;
+  }
+  uploadInput.value = '';
+}
+
+// ---------- init ----------
+function initDashboard() {
+  loadBranding();
+  loadStats();
+  loadEmployees('');
+  loadLeaves();
+}
+
+checkSession();
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+name = "dli-hr-assistant"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+# Serves everything in public/ as static assets (index.html, admin.html,
+# style.css). The Worker's fetch handler (src/index.ts) runs first for any
+# request under /api/*; everything else is handed to ASSETS, which serves the
+# matching file or a plain 404 if nothing matches (no SPA fallback, since this
+# app has two distinct pages rather than a single-page app).
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# D1 database binding — the database_id below is filled in automatically
+# the first time you run `wrangler d1 create dli-hr-db` (see README).
+[[d1_databases]]
+binding = "DB"
+database_name = "dli-hr-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
